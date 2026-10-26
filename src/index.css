@@ -1,0 +1,281 @@
+:root {
+  --felt: #0b5e36;
+  --felt-dark: #073f24;
+  --text: #1a1a1a;
+  --text-light: #f4f4f4;
+  --panel-bg: #ffffff;
+  --panel-border: #d8d8d8;
+  --card-bg: #ffffff;
+  --card-border: #333;
+  --card-red: #c0392b;
+  --card-black: #111;
+  --accent: #e0b84b;
+  font: 16px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --panel-bg: #1e1f24;
+    --panel-border: #3a3b42;
+    --text: #eee;
+    --card-bg: #f0f0f0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
+  color: var(--text-light);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  margin: 0 0 8px;
+  color: var(--text-light);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- New game screen --- */
+.new-game {
+  margin: auto;
+  text-align: center;
+  padding: 32px;
+  max-width: 480px;
+}
+
+.difficulty-pickers {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+.difficulty-pickers label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.start-button {
+  font-size: 18px;
+  padding: 10px 24px;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- Cards --- */
+.card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 58px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 2px 4px;
+}
+
+.card.red {
+  color: var(--card-red);
+}
+
+.card.black {
+  color: var(--card-black);
+}
+
+.card.selected {
+  outline: 3px solid var(--accent);
+  transform: translateY(-6px);
+}
+
+.card.disabled {
+  opacity: 0.35;
+}
+
+.card.tiny {
+  min-width: 32px;
+  height: 44px;
+  font-size: 12px;
+}
+
+.card-back {
+  display: inline-block;
+  width: 32px;
+  height: 46px;
+  border-radius: 5px;
+  background: repeating-linear-gradient(45deg, #2d5fa3, #2d5fa3 4px, #1f4680 4px, #1f4680 8px);
+  border: 1px solid #16304f;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* --- Table layout --- */
+.table {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 16px;
+  padding: 16px;
+}
+
+.opponents {
+  grid-column: 1;
+  display: flex;
+  justify-content: space-around;
+}
+
+.opponent {
+  text-align: center;
+}
+
+.opponent-cards {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.turn-indicator {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.trick-area {
+  grid-column: 1;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  min-height: 90px;
+}
+
+.trick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.trick-empty {
+  opacity: 0.7;
+}
+
+.center-controls {
+  grid-column: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.panel {
+  background: var(--panel-bg);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.bid-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pass-button {
+  width: 100%;
+}
+
+.vyslu-toggle {
+  display: block;
+  margin: 10px 0;
+}
+
+.human-area {
+  grid-column: 1;
+  text-align: center;
+}
+
+.side-panels {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.score-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.score-sheet th,
+.score-sheet td {
+  border-bottom: 1px solid var(--panel-border);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.game-log {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-log-lines {
+  overflow-y: auto;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  max-height: 320px;
+}
+
+.reset-button {
+  align-self: flex-start;
+}
+
+@media (max-width: 900px) {
+  .table {
+    grid-template-columns: 1fr;
+  }
+  .side-panels {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
