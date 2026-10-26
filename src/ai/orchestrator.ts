@@ -28,7 +28,7 @@ export function decideBotAction(state: GameState, player: PlayerId, bot: BotStra
   if (phase.tag === 'talonExchange') {
     const combined = [...state.deal.hands[player], ...state.deal.talon];
     const [a, b] = bot.decideTalonDiscard(view, combined);
-    const onVyslu = isEligibleForVyslu(state.totals[player].gora);
+    const onVyslu = isEligibleForVyslu(state.totals[player].gora, state.rulesConfig);
     return { type: 'EXCHANGE_TALON', player, discard: [a, b], onVyslu };
   }
   if (phase.tag === 'whistDecisions') {

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialGameState, sessionReducer } from '../engine/reducer/sessionReducer';
+import { buildRulesConfig } from '../engine/rules/ruleProfiles';
 import { playDealToCompletion } from './orchestrator';
 import { easyBot } from './easyBot';
 import { mediumBot } from './mediumBot';
 import { hardBot } from './hardBot';
 import type { BotStrategy } from './types';
 import type { PlayerId } from '../engine/model/player';
+
+const config = buildRulesConfig('sochi', 10);
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -24,7 +27,7 @@ describe('headless bot-vs-bot-vs-bot smoke test', () => {
   it('plays 200 random deals end-to-end without the engine ever throwing', () => {
     for (let i = 0; i < 200; i++) {
       const rng = mulberry32(1000 + i);
-      let state = createInitialGameState((i % 3) as PlayerId, rng);
+      let state = createInitialGameState((i % 3) as PlayerId, config, rng);
       state = playDealToCompletion(state, bots);
       expect(state.deal.phase.tag).toBe('scored');
     }
@@ -32,7 +35,7 @@ describe('headless bot-vs-bot-vs-bot smoke test', () => {
 
   it('plays a full 10-deal pulya and accumulates sane totals', () => {
     const rng = mulberry32(7);
-    let state = createInitialGameState(0, rng);
+    let state = createInitialGameState(0, config, rng);
     for (let d = 0; d < state.pulyaLength; d++) {
       state = playDealToCompletion(state, bots);
       if (d < state.pulyaLength - 1) {
@@ -56,7 +59,7 @@ describe('headless bot-vs-bot-vs-bot smoke test', () => {
     it(`never proposes an illegal move across 100 random deals (${label})`, () => {
       for (let i = 0; i < 100; i++) {
         const rng = mulberry32(5000 + i);
-        let state = createInitialGameState((i % 3) as PlayerId, rng);
+        let state = createInitialGameState((i % 3) as PlayerId, config, rng);
         state = playDealToCompletion(state, lineup);
         expect(state.deal.phase.tag).toBe('scored');
       }

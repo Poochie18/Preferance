@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useGame, HUMAN } from '../../context/GameContext';
 import { getVisibleState } from '../../../engine/rules/view';
 import { legalCardsToPlay } from '../../../engine/rules/trick';
@@ -10,19 +11,38 @@ import { WhistControls } from '../WhistControls/WhistControls';
 import { TrickArea } from '../TrickArea/TrickArea';
 import { ScoreSheet } from '../ScoreSheet/ScoreSheet';
 import { GameLog } from '../GameLog/GameLog';
-import { PLAYER_NAMES } from '../../log';
+import { useTranslation } from '../../../i18n';
+import { useSettings } from '../../../settings/context';
 import { cardLabel } from '../../cardLabel';
 
 const DEBUG = new URLSearchParams(window.location.search).get('debug') === '1';
 
 export function Table() {
-  const { game, log, dispatchHuman, nextDeal, resetGame } = useGame();
+  const { game, log, paused, setPaused, dispatchHuman, nextDeal, resetGame } = useGame();
+  const { settings } = useSettings();
+  const { t } = useTranslation();
+
+  const phase = game?.deal.phase;
+  const isBlindMisereTalon =
+    !!phase &&
+    phase.tag === 'talonExchange' &&
+    phase.declarer === HUMAN &&
+    (phase.finalBid.kind === 'misere' || phase.finalBid.kind === 'misere-ouvert') &&
+    game!.rulesConfig.misereBiddingMode === 'blind';
+
+  useEffect(() => {
+    if (isBlindMisereTalon) {
+      dispatchHuman({ type: 'EXCHANGE_TALON', player: HUMAN, discard: [] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBlindMisereTalon]);
+
   if (!game) return null;
 
   const view = getVisibleState(game, HUMAN);
-  const phase = game.deal.phase;
   const acting = currentActingPlayer(game);
   const isHumanTurn = acting === HUMAN;
+  const showTalonExchange = phase!.tag === 'talonExchange' && phase!.declarer === HUMAN && !isBlindMisereTalon;
 
   return (
     <div className="table">
@@ -30,8 +50,8 @@ export function Table() {
         {([1, 2] as const).map((p) => (
           <div key={p} className="opponent">
             <div className="opponent-name">
-              {PLAYER_NAMES[p]}
-              {phase.tag !== 'scored' && acting === p && <span className="turn-indicator"> ◀ хід</span>}
+              {t.playerNames[p]}
+              {phase!.tag !== 'scored' && acting === p && <span className="turn-indicator"> {t.table.yourTurn}</span>}
             </div>
             <div className="opponent-cards">
               {DEBUG
@@ -46,31 +66,28 @@ export function Table() {
         ))}
       </div>
 
-      {phase.tag === 'trickPlay' && <TrickArea plays={phase.currentTrick} />}
+      {phase!.tag === 'trickPlay' && <TrickArea plays={phase!.currentTrick} />}
 
       <div className="center-controls">
-        {phase.tag === 'bidding' && isHumanTurn && (
-          <BiddingControls biddingState={phase} onBid={(bid) => dispatchHuman({ type: 'BID', player: HUMAN, bid })} />
+        {phase!.tag === 'bidding' && isHumanTurn && (
+          <BiddingControls biddingState={phase!} onBid={(bid) => dispatchHuman({ type: 'BID', player: HUMAN, bid })} />
         )}
-        {phase.tag === 'talonExchange' && phase.declarer === HUMAN && (
+        {showTalonExchange && phase!.tag === 'talonExchange' && (
           <TalonExchange
             combinedHand={pickupTalon(game.deal.hands[HUMAN], game.deal.talon)}
-            finalBid={phase.finalBid}
+            finalBid={phase!.finalBid}
             declarerGora={game.totals[HUMAN].gora}
-            onConfirm={(discard, onVyslu) =>
-              dispatchHuman({ type: 'EXCHANGE_TALON', player: HUMAN, discard, onVyslu })
-            }
+            rulesConfig={game.rulesConfig}
+            onConfirm={(discard, onVyslu) => dispatchHuman({ type: 'EXCHANGE_TALON', player: HUMAN, discard, onVyslu })}
           />
         )}
-        {phase.tag === 'whistDecisions' && phase.turn === HUMAN && (
-          <WhistControls
-            onDecide={(decision) => dispatchHuman({ type: 'WHIST_DECISION', player: HUMAN, decision })}
-          />
+        {phase!.tag === 'whistDecisions' && phase!.turn === HUMAN && (
+          <WhistControls onDecide={(decision) => dispatchHuman({ type: 'WHIST_DECISION', player: HUMAN, decision })} />
         )}
-        {phase.tag === 'scored' && (
+        {phase!.tag === 'scored' && (
           <div className="panel deal-scored">
             <button onClick={nextDeal}>
-              {game.deal.dealNumber >= game.pulyaLength ? 'Нова пуля' : 'Наступна здача'}
+              {game.deal.dealNumber >= game.pulyaLength ? t.table.newPulya : t.table.nextDeal}
             </button>
           </div>
         )}
@@ -78,18 +95,18 @@ export function Table() {
 
       <div className="human-area">
         <div className="opponent-name">
-          {PLAYER_NAMES[HUMAN]}
-          {phase.tag !== 'scored' && isHumanTurn && <span className="turn-indicator"> ◀ хід</span>}
+          {t.playerNames[HUMAN]}
+          {phase!.tag !== 'scored' && isHumanTurn && <span className="turn-indicator"> {t.table.yourTurn}</span>}
         </div>
         <Hand
           cards={view.myHand}
           legalCards={
-            phase.tag === 'trickPlay' && phase.turn === HUMAN
-              ? legalCardsToPlay(view.myHand, phase.currentTrick)
+            phase!.tag === 'trickPlay' && phase!.turn === HUMAN
+              ? legalCardsToPlay(view.myHand, phase!.currentTrick)
               : undefined
           }
           onPlay={
-            phase.tag === 'trickPlay' && phase.turn === HUMAN
+            phase!.tag === 'trickPlay' && phase!.turn === HUMAN
               ? (card) => dispatchHuman({ type: 'PLAY_CARD', player: HUMAN, card })
               : undefined
           }
@@ -99,8 +116,13 @@ export function Table() {
       <div className="side-panels">
         <ScoreSheet totals={game.totals} dealNumber={game.deal.dealNumber} pulyaLength={game.pulyaLength} />
         <GameLog lines={log} />
+        {settings.pauseEnabled && (
+          <button className="pause-button" onClick={() => setPaused(!paused)}>
+            {paused ? t.table.resume : t.table.pause}
+          </button>
+        )}
         <button className="reset-button" onClick={resetGame}>
-          Нова гра
+          {t.table.newGame}
         </button>
       </div>
     </div>

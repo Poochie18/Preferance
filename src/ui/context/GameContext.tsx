@@ -9,7 +9,9 @@ import { easyBot } from '../../ai/easyBot';
 import { mediumBot } from '../../ai/mediumBot';
 import { hardBot } from '../../ai/hardBot';
 import type { BotDifficulty, BotStrategy } from '../../ai/types';
-import { describeAction, describeDealResult } from '../log';
+import { describeAction, describeDealResult, type LogEntry } from '../log';
+import { useSettings } from '../../settings/context';
+import { rulesConfigFromSettings } from '../../settings/rulesConfigFromSettings';
 
 export const HUMAN: PlayerId = 0;
 
@@ -19,33 +21,31 @@ const BOT_STRATEGIES: Record<BotDifficulty, BotStrategy> = {
   hard: hardBot,
 };
 
-export interface GameConfig {
-  bot1Difficulty: BotDifficulty;
-  bot2Difficulty: BotDifficulty;
-}
-
 interface InternalState {
   game: GameState | null;
-  config: GameConfig;
-  log: string[];
+  paused: boolean;
+  log: LogEntry[];
 }
 
 type InternalAction =
-  | { type: 'START'; game: GameState; config: GameConfig }
+  | { type: 'START'; game: GameState }
+  | { type: 'RESET' }
   | { type: 'DEAL_ACTION'; action: DealAction }
-  | { type: 'NEXT_DEAL' }
-  | { type: 'RESET' };
+  | { type: 'NEXT_DEAL'; config: ReturnType<typeof rulesConfigFromSettings> }
+  | { type: 'SET_PAUSED'; paused: boolean };
 
 function reducer(state: InternalState, action: InternalAction): InternalState {
   switch (action.type) {
     case 'START':
-      return { game: action.game, config: action.config, log: ['Нову гру розпочато.'] };
+      return { game: action.game, paused: false, log: [{ kind: 'new-game' }] };
     case 'RESET':
-      return { game: null, config: state.config, log: [] };
+      return { game: null, paused: false, log: [] };
+    case 'SET_PAUSED':
+      return { ...state, paused: action.paused };
     case 'DEAL_ACTION': {
       if (!state.game) return state;
       const nextGame = sessionReducer(state.game, { type: 'DEAL_ACTION', action: action.action });
-      const lines = [describeAction(action.action)];
+      const lines: LogEntry[] = [describeAction(action.action)];
       const resultLine = describeDealResult(nextGame);
       if (resultLine) lines.push(resultLine);
       return { ...state, game: nextGame, log: [...state.log, ...lines] };
@@ -54,11 +54,9 @@ function reducer(state: InternalState, action: InternalAction): InternalState {
       if (!state.game) return state;
       const atPulyaEnd = state.game.deal.dealNumber >= state.game.pulyaLength;
       const nextGame = atPulyaEnd
-        ? sessionReducer(state.game, { type: 'START_NEW_PULYA', firstDealer: 0 })
+        ? sessionReducer(state.game, { type: 'START_NEW_PULYA', firstDealer: 0, config: action.config })
         : sessionReducer(state.game, { type: 'START_NEXT_DEAL' });
-      const line = atPulyaEnd
-        ? '— Нова пуля розпочата, рахунок скинуто —'
-        : `— Роздача ${nextGame.deal.dealNumber} —`;
+      const line: LogEntry = atPulyaEnd ? { kind: 'new-pulya' } : { kind: 'deal-header', n: nextGame.deal.dealNumber };
       return { ...state, game: nextGame, log: [...state.log, line] };
     }
   }
@@ -66,36 +64,34 @@ function reducer(state: InternalState, action: InternalAction): InternalState {
 
 interface GameContextValue {
   game: GameState | null;
-  config: GameConfig;
-  log: string[];
-  startGame: (config: GameConfig) => void;
+  paused: boolean;
+  log: LogEntry[];
+  startGame: () => void;
   resetGame: () => void;
   dispatchHuman: (action: DealAction) => void;
   nextDeal: () => void;
+  setPaused: (paused: boolean) => void;
   botStrategyFor: (player: PlayerId) => BotStrategy;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, {
-    game: null,
-    config: { bot1Difficulty: 'easy', bot2Difficulty: 'easy' },
-    log: [],
-  });
+  const { settings } = useSettings();
+  const [state, dispatch] = useReducer(reducer, { game: null, paused: false, log: [] });
   const steppingRef = useRef(false);
 
   const botStrategyFor = useCallback(
     (player: PlayerId): BotStrategy => {
       if (player === HUMAN) throw new Error('Human has no bot strategy');
-      const difficulty = player === 1 ? state.config.bot1Difficulty : state.config.bot2Difficulty;
+      const difficulty = player === 1 ? settings.bot1Difficulty : settings.bot2Difficulty;
       return BOT_STRATEGIES[difficulty];
     },
-    [state.config],
+    [settings.bot1Difficulty, settings.bot2Difficulty],
   );
 
   useEffect(() => {
-    if (!state.game) return;
+    if (!state.game || state.paused) return;
     if (state.game.deal.phase.tag === 'scored') return;
     const actingPlayer = currentActingPlayer(state.game);
     if (actingPlayer === null || actingPlayer === HUMAN) return;
@@ -110,26 +106,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clearTimeout(timer);
       steppingRef.current = false;
     };
-  }, [state.game, botStrategyFor]);
+  }, [state.game, state.paused, botStrategyFor]);
 
-  const startGame = useCallback((config: GameConfig) => {
-    const firstDealer: PlayerId = 0;
-    const game = createInitialGameState(firstDealer);
-    dispatch({ type: 'START', game, config });
-  }, []);
+  const startGame = useCallback(() => {
+    const config = rulesConfigFromSettings(settings);
+    const game = createInitialGameState(0, config);
+    dispatch({ type: 'START', game });
+  }, [settings]);
 
   const resetGame = useCallback(() => dispatch({ type: 'RESET' }), []);
   const dispatchHuman = useCallback((action: DealAction) => dispatch({ type: 'DEAL_ACTION', action }), []);
-  const nextDeal = useCallback(() => dispatch({ type: 'NEXT_DEAL' }), []);
+  const nextDeal = useCallback(() => {
+    dispatch({ type: 'NEXT_DEAL', config: rulesConfigFromSettings(settings) });
+  }, [settings]);
+  const setPaused = useCallback((paused: boolean) => dispatch({ type: 'SET_PAUSED', paused }), []);
 
   const value: GameContextValue = {
     game: state.game,
-    config: state.config,
+    paused: state.paused,
     log: state.log,
     startGame,
     resetGame,
     dispatchHuman,
     nextDeal,
+    setPaused,
     botStrategyFor,
   };
 

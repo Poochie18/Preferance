@@ -1,5 +1,7 @@
 import { getLegalBids, type BiddingState } from '../../../engine/rules/bidding';
-import { formatBid, type Bid } from '../../../engine/model/bid';
+import { bidRank, type Bid } from '../../../engine/model/bid';
+import { formatBidLocalized } from '../../formatBid';
+import { useTranslation } from '../../../i18n';
 
 interface Props {
   biddingState: BiddingState;
@@ -7,19 +9,20 @@ interface Props {
 }
 
 export function BiddingControls({ biddingState, onBid }: Props) {
+  const { t } = useTranslation();
   const legal = getLegalBids(biddingState);
   return (
     <div className="panel bidding-controls">
-      <h3>Торг — ваш хід</h3>
+      <h3>{t.bidding.title}</h3>
       <div className="bid-grid">
         {legal.map((bid) => (
-          <button key={formatBid(bid)} onClick={() => onBid(bid)}>
-            {formatBid(bid)}
+          <button key={bidRank(bid)} onClick={() => onBid(bid)}>
+            {formatBidLocalized(bid, t)}
           </button>
         ))}
       </div>
       <button className="pass-button" onClick={() => onBid('pass')}>
-        Пас
+        {t.bidding.pass}
       </button>
     </div>
   );

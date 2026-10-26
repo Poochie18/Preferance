@@ -1,23 +1,28 @@
 :root {
-  --felt: #0b5e36;
-  --felt-dark: #073f24;
+  --felt: #0d6b3f;
+  --felt-dark: #05301c;
   --text: #1a1a1a;
   --text-light: #f4f4f4;
-  --panel-bg: #ffffff;
-  --panel-border: #d8d8d8;
-  --card-bg: #ffffff;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --panel-border: rgba(0, 0, 0, 0.12);
+  --card-bg: #fffdf7;
   --card-border: #333;
-  --card-red: #c0392b;
+  --card-red: #b5281a;
   --card-black: #111;
   --accent: #e0b84b;
-  font: 16px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+  --accent-dark: #b6872a;
+  --card-scale: 1;
+  --text-scale: 1;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: calc(16px * var(--text-scale));
+  line-height: 1.4;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --panel-bg: #1e1f24;
-    --panel-border: #3a3b42;
+    --panel-bg: rgba(30, 31, 36, 0.85);
+    --panel-border: rgba(255, 255, 255, 0.12);
     --text: #eee;
     --card-bg: #f0f0f0;
   }
@@ -30,7 +35,10 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 55%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.04) 0 2px, transparent 2px 6px),
+    radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%);
   color: var(--text-light);
 }
 
@@ -40,9 +48,19 @@ body {
   flex-direction: column;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   margin: 0 0 8px;
   color: var(--text-light);
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.3px;
+}
+
+.panel h1,
+.panel h2,
+.panel h3 {
+  color: var(--text);
 }
 
 button {
@@ -53,6 +71,11 @@ button {
   color: var(--text);
   border-radius: 6px;
   padding: 6px 12px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 button:disabled {
@@ -60,12 +83,60 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* --- New game screen --- */
-.new-game {
+.panel {
+  background: var(--panel-bg);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: calc(16px * var(--text-scale));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+/* --- Main menu --- */
+.main-menu {
+  margin: auto;
+  text-align: center;
+  padding: 40px;
+  max-width: 480px;
+}
+
+.main-menu-subtitle {
+  opacity: 0.75;
+  margin-bottom: 20px;
+}
+
+.language-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.language-picker button.lang-active {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  font-weight: 600;
+}
+
+.main-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+/* --- New game / settings screens --- */
+.new-game,
+.settings-screen {
   margin: auto;
   text-align: center;
   padding: 32px;
-  max-width: 480px;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .difficulty-pickers {
@@ -82,10 +153,45 @@ button:disabled {
 }
 
 .start-button {
-  font-size: 18px;
+  font-size: calc(18px * var(--text-scale));
   padding: 10px 24px;
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-dark);
+}
+
+.back-button {
+  margin-top: 12px;
+}
+
+.settings-screen fieldset {
+  text-align: left;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+}
+
+.settings-screen legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.inline-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.inline-number input[type='number'] {
+  width: 70px;
 }
 
 /* --- Cards --- */
@@ -93,13 +199,14 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 42px;
-  height: 58px;
-  background: var(--card-bg);
+  min-width: calc(42px * var(--card-scale));
+  height: calc(58px * var(--card-scale));
+  background: linear-gradient(160deg, var(--card-bg), #e9e4d6);
   border: 1px solid var(--card-border);
-  border-radius: 6px;
+  border-radius: calc(6px * var(--card-scale));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   font-weight: 600;
-  font-size: 15px;
+  font-size: calc(15px * var(--card-scale));
   padding: 2px 4px;
 }
 
@@ -121,18 +228,19 @@ button:disabled {
 }
 
 .card.tiny {
-  min-width: 32px;
-  height: 44px;
-  font-size: 12px;
+  min-width: calc(32px * var(--card-scale));
+  height: calc(44px * var(--card-scale));
+  font-size: calc(12px * var(--card-scale));
 }
 
 .card-back {
   display: inline-block;
-  width: 32px;
-  height: 46px;
-  border-radius: 5px;
+  width: calc(32px * var(--card-scale));
+  height: calc(46px * var(--card-scale));
+  border-radius: calc(5px * var(--card-scale));
   background: repeating-linear-gradient(45deg, #2d5fa3, #2d5fa3 4px, #1f4680 4px, #1f4680 8px);
   border: 1px solid #16304f;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .hand {
@@ -188,7 +296,7 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
 }
 
 .trick-empty {
@@ -199,14 +307,6 @@ button:disabled {
   grid-column: 1;
   display: flex;
   justify-content: center;
-}
-
-.panel {
-  background: var(--panel-bg);
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  padding: 16px;
 }
 
 .bid-grid {
@@ -259,13 +359,14 @@ button:disabled {
 
 .game-log-lines {
   overflow-y: auto;
-  font-size: 13px;
+  font-size: calc(13px * var(--text-scale));
   display: flex;
   flex-direction: column-reverse;
   gap: 4px;
   max-height: 320px;
 }
 
+.pause-button,
 .reset-button {
   align-self: flex-start;
 }

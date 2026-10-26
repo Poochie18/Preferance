@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createDeal, dealReducer } from './dealReducer';
+import { buildRulesConfig } from '../rules/ruleProfiles';
 import type { DealState } from '../model/gameState';
 import type { PlayerId } from '../model/player';
+
+const config = buildRulesConfig('sochi', 10);
 
 function fixedRng(seed: number) {
   let s = seed;
@@ -13,9 +16,9 @@ function fixedRng(seed: number) {
 
 function playFullSuitDeal(state: DealState) {
   // player 0 bids 6 spades, 1 and 2 pass -> player 0 declares
-  let s = dealReducer(state, { type: 'BID', player: s0turn(state), bid: { kind: 'suit', level: 6, trump: '♠' } });
+  let s = dealReducer(state, { type: 'BID', player: s0turn(state), bid: { kind: 'suit', level: 6, trump: '♠' } }, config);
   while (s.phase.tag === 'bidding') {
-    s = dealReducer(s, { type: 'BID', player: s.phase.turn, bid: 'pass' });
+    s = dealReducer(s, { type: 'BID', player: s.phase.turn, bid: 'pass' }, config);
   }
   return s;
 }
@@ -37,11 +40,11 @@ describe('dealReducer full phase walk', () => {
 
     const combined = [...state.hands[declarer], ...state.talon];
     const discard: [typeof combined[0], typeof combined[0]] = [combined[0], combined[1]];
-    state = dealReducer(state, { type: 'EXCHANGE_TALON', player: declarer, discard });
+    state = dealReducer(state, { type: 'EXCHANGE_TALON', player: declarer, discard }, config);
     expect(state.phase.tag).toBe('whistDecisions');
 
     while (state.phase.tag === 'whistDecisions') {
-      state = dealReducer(state, { type: 'WHIST_DECISION', player: state.phase.turn, decision: 'whist' });
+      state = dealReducer(state, { type: 'WHIST_DECISION', player: state.phase.turn, decision: 'whist' }, config);
     }
     expect(state.phase.tag).toBe('trickPlay');
 
@@ -56,7 +59,7 @@ describe('dealReducer full phase walk', () => {
       let played = false;
       for (const card of legal) {
         try {
-          state = dealReducer(state, { type: 'PLAY_CARD', player: phase.turn, card });
+          state = dealReducer(state, { type: 'PLAY_CARD', player: phase.turn, card }, config);
           played = true;
           break;
         } catch {
@@ -76,21 +79,68 @@ describe('dealReducer full phase walk', () => {
   it('rejects actions that do not match the current phase', () => {
     const state = createDeal(1, 0, fixedRng(1));
     expect(() =>
-      dealReducer(state, { type: 'PLAY_CARD', player: 0, card: { suit: '♠', rank: 7 } }),
+      dealReducer(state, { type: 'PLAY_CARD', player: 0, card: { suit: '♠', rank: 7 } }, config),
     ).toThrow();
   });
 
   it('all-pass leads directly to a rozpasovka trick-play phase with no contract', () => {
     let state = createDeal(1, 0, fixedRng(7));
     if (state.phase.tag !== 'bidding') throw new Error('unreachable');
-    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' });
+    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' }, config);
     if (state.phase.tag !== 'bidding') throw new Error('unreachable');
-    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' });
+    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' }, config);
     if (state.phase.tag !== 'bidding') throw new Error('unreachable');
-    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' });
+    state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' }, config);
     expect(state.phase.tag).toBe('trickPlay');
     if (state.phase.tag === 'trickPlay') {
       expect(state.phase.contract).toBeNull();
     }
+  });
+
+  it('finalDealMode "settled" skips the whist phase on the pulya\'s last deal', () => {
+    const settledConfig = buildRulesConfig('sochi', 1, { finalDealMode: 'settled' });
+    let state = createDeal(1, 0, fixedRng(42));
+    state = playFullSuitDeal(state);
+    if (state.phase.tag !== 'talonExchange') throw new Error('unreachable');
+    const declarer = state.phase.declarer;
+    const combined = [...state.hands[declarer], ...state.talon];
+    state = dealReducer(
+      state,
+      { type: 'EXCHANGE_TALON', player: declarer, discard: [combined[0], combined[1]] },
+      settledConfig,
+    );
+    expect(state.phase.tag).toBe('trickPlay');
+  });
+
+  it('finalDealMode "whisted" still plays out the whist phase on the last deal', () => {
+    const whistedConfig = buildRulesConfig('sochi', 1, { finalDealMode: 'whisted' });
+    let state = createDeal(1, 0, fixedRng(42));
+    state = playFullSuitDeal(state);
+    if (state.phase.tag !== 'talonExchange') throw new Error('unreachable');
+    const declarer = state.phase.declarer;
+    const combined = [...state.hands[declarer], ...state.talon];
+    state = dealReducer(
+      state,
+      { type: 'EXCHANGE_TALON', player: declarer, discard: [combined[0], combined[1]] },
+      whistedConfig,
+    );
+    expect(state.phase.tag).toBe('whistDecisions');
+  });
+
+  it('misereBiddingMode "blind" skips talon pickup entirely for a misère declarer', () => {
+    const blindConfig = buildRulesConfig('rostov', 10, { misereBiddingMode: 'blind' });
+    let state = createDeal(1, 0, fixedRng(42));
+    if (state.phase.tag !== 'bidding') throw new Error('unreachable');
+    const firstBidder = state.phase.turn;
+    const originalHand = state.hands[firstBidder];
+    state = dealReducer(state, { type: 'BID', player: firstBidder, bid: { kind: 'misere' } }, blindConfig);
+    while (state.phase.tag === 'bidding') {
+      state = dealReducer(state, { type: 'BID', player: state.phase.turn, bid: 'pass' }, blindConfig);
+    }
+    if (state.phase.tag !== 'talonExchange') throw new Error('unreachable');
+    state = dealReducer(state, { type: 'EXCHANGE_TALON', player: firstBidder, discard: [] }, blindConfig);
+    expect(state.phase.tag).toBe('trickPlay');
+    expect(state.hands[firstBidder]).toEqual(originalHand);
+    expect(state.discard).toEqual([]);
   });
 });

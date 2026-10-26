@@ -1,6 +1,6 @@
 import type { PlayerTotals } from '../../../engine/model/gameState';
 import type { PlayerId } from '../../../engine/model/player';
-import { PLAYER_NAMES } from '../../log';
+import { useTranslation } from '../../../i18n';
 
 interface Props {
   totals: Record<PlayerId, PlayerTotals>;
@@ -9,23 +9,23 @@ interface Props {
 }
 
 export function ScoreSheet({ totals, dealNumber, pulyaLength }: Props) {
+  const { t } = useTranslation();
+  const shownTotal = Number.isFinite(pulyaLength) ? pulyaLength : dealNumber;
   return (
     <div className="panel score-sheet">
-      <h3>
-        Пуля: здача {Math.min(dealNumber, pulyaLength)} / {pulyaLength}
-      </h3>
+      <h3>{t.scoreSheet.pulya(Math.min(dealNumber, shownTotal), shownTotal)}</h3>
       <table>
         <thead>
           <tr>
-            <th>Гравець</th>
-            <th>Гра</th>
-            <th>Гора</th>
+            <th>{t.scoreSheet.player}</th>
+            <th>{t.scoreSheet.game}</th>
+            <th>{t.scoreSheet.gora}</th>
           </tr>
         </thead>
         <tbody>
           {([0, 1, 2] as PlayerId[]).map((p) => (
             <tr key={p}>
-              <td>{PLAYER_NAMES[p]}</td>
+              <td>{t.playerNames[p]}</td>
               <td>{totals[p].game}</td>
               <td>{totals[p].gora}</td>
             </tr>

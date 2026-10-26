@@ -1,6 +1,7 @@
 import type { Card } from './card';
 import type { PlayerId } from './player';
 import type { Bid, ContractKind, TrumpOption } from './bid';
+import type { RulesConfig } from '../rules/rulesConfig';
 
 export type WhistDecision = 'whist' | 'half-whist' | 'pass';
 
@@ -80,6 +81,8 @@ export interface PlayerTotals {
 export interface GameState {
   totals: Record<PlayerId, PlayerTotals>;
   pulyaLength: number;
+  rulesConfig: RulesConfig;
+  sessionStartedAt: number;
   deal: DealState;
   history: DealResult[];
 }

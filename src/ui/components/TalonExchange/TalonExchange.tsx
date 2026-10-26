@@ -2,12 +2,18 @@ import { useState } from 'react';
 import type { Card } from '../../../engine/model/card';
 import { cardLabel, isRedSuit } from '../../cardLabel';
 import { isEligibleForVyslu } from '../../../engine/rules/scoring';
-import { formatBid, type Bid } from '../../../engine/model/bid';
+import type { Bid } from '../../../engine/model/bid';
+import { formatBidLocalized } from '../../formatBid';
+import { useTranslation } from '../../../i18n';
+import { useSettings } from '../../../settings/context';
+import { sortHand } from '../../handSort';
+import type { RulesConfig } from '../../../engine/rules/rulesConfig';
 
 interface Props {
   combinedHand: Card[];
   finalBid: Bid;
   declarerGora: number;
+  rulesConfig: RulesConfig;
   onConfirm: (discard: [Card, Card], onVyslu: boolean) => void;
 }
 
@@ -15,10 +21,13 @@ function sameCard(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank;
 }
 
-export function TalonExchange({ combinedHand, finalBid, declarerGora, onConfirm }: Props) {
+export function TalonExchange({ combinedHand, finalBid, declarerGora, rulesConfig, onConfirm }: Props) {
+  const { t } = useTranslation();
+  const { settings } = useSettings();
   const [selected, setSelected] = useState<Card[]>([]);
   const [onVyslu, setOnVyslu] = useState(false);
-  const eligible = isEligibleForVyslu(declarerGora);
+  const eligible = isEligibleForVyslu(declarerGora, rulesConfig);
+  const sorted = sortHand(combinedHand, settings.suitLayout);
 
   function toggle(card: Card) {
     setSelected((prev) => {
@@ -30,11 +39,9 @@ export function TalonExchange({ combinedHand, finalBid, declarerGora, onConfirm 
 
   return (
     <div className="panel talon-exchange">
-      <h3>
-        Прикуп узято. Ваша заявка: {formatBid(finalBid)}. Скиньте 2 карти ({selected.length}/2).
-      </h3>
+      <h3>{t.talon.title(formatBidLocalized(finalBid, t), selected.length)}</h3>
       <div className="hand">
-        {combinedHand.map((c) => {
+        {sorted.map((c) => {
           const isSelected = selected.some((s) => sameCard(s, c));
           return (
             <button
@@ -50,11 +57,11 @@ export function TalonExchange({ combinedHand, finalBid, declarerGora, onConfirm 
       {eligible && (
         <label className="vyslu-toggle">
           <input type="checkbox" checked={onVyslu} onChange={(e) => setOnVyslu(e.target.checked)} />
-          Грати на вислу
+          {t.talon.playOnVyslu}
         </label>
       )}
       <button disabled={selected.length !== 2} onClick={() => onConfirm([selected[0], selected[1]], onVyslu)}>
-        Підтвердити
+        {t.talon.confirm}
       </button>
     </div>
   );

@@ -8,10 +8,11 @@ import { dealCards } from '../rules/deal';
 import { discardToHand, pickupTalon } from '../rules/talonExchange';
 import { legalCardsToPlay, resolveTrick } from '../rules/trick';
 import { computeDealResult } from '../rules/scoring';
+import type { RulesConfig } from '../rules/rulesConfig';
 
 export type DealAction =
   | { type: 'BID'; player: PlayerId; bid: Bid | 'pass' }
-  | { type: 'EXCHANGE_TALON'; player: PlayerId; discard: [Card, Card]; onVyslu?: boolean }
+  | { type: 'EXCHANGE_TALON'; player: PlayerId; discard: [Card, Card] | []; onVyslu?: boolean }
   | { type: 'WHIST_DECISION'; player: PlayerId; decision: WhistDecision }
   | { type: 'PLAY_CARD'; player: PlayerId; card: Card };
 
@@ -34,7 +35,7 @@ function tallyTricks(tricks: CompletedTrick[]): Record<PlayerId, number> {
   return tally;
 }
 
-export function dealReducer(state: DealState, action: DealAction): DealState {
+export function dealReducer(state: DealState, action: DealAction, config: RulesConfig): DealState {
   const phase = state.phase;
 
   switch (action.type) {
@@ -68,12 +69,23 @@ export function dealReducer(state: DealState, action: DealAction): DealState {
     case 'EXCHANGE_TALON': {
       if (phase.tag !== 'talonExchange') throw new Error('Not in talon exchange phase');
       if (action.player !== phase.declarer) throw new Error('Only the declarer exchanges the talon');
-      const combined = pickupTalon(state.hands[action.player], state.talon);
-      const newHand = discardToHand(combined, action.discard);
-      const hands = { ...state.hands, [action.player]: newHand };
       const contract = contractFromBid(action.player, phase.finalBid, action.onVyslu ?? false);
+      const isBlindMisere =
+        (contract.kind === 'misere' || contract.kind === 'misere-ouvert') && config.misereBiddingMode === 'blind';
 
-      if (contract.kind === 'suit') {
+      let hands = state.hands;
+      let discard: Card[] = [];
+      if (!isBlindMisere) {
+        if (action.discard.length !== 2) throw new Error('Must discard exactly 2 cards unless playing blind misère');
+        const combined = pickupTalon(state.hands[action.player], state.talon);
+        const newHand = discardToHand(combined, action.discard);
+        hands = { ...state.hands, [action.player]: newHand };
+        discard = action.discard;
+      }
+
+      const isFinalDealSettled = config.finalDealMode === 'settled' && state.dealNumber === config.pulyaLength;
+
+      if (contract.kind === 'suit' && !isFinalDealSettled) {
         const order = rotationFrom(nextPlayer(contract.declarer), contract.declarer);
         const nextPhase: DealPhase = {
           tag: 'whistDecisions',
@@ -82,7 +94,7 @@ export function dealReducer(state: DealState, action: DealAction): DealState {
           order,
           decisions: {},
         };
-        return { ...state, hands, talon: [], discard: action.discard, phase: nextPhase };
+        return { ...state, hands, talon: [], discard, phase: nextPhase };
       }
 
       const nextPhase: DealPhase = {
@@ -93,7 +105,7 @@ export function dealReducer(state: DealState, action: DealAction): DealState {
         currentTrick: [],
         turn: nextPlayer(contract.declarer),
       };
-      return { ...state, hands, talon: [], discard: action.discard, phase: nextPhase };
+      return { ...state, hands, talon: [], discard, phase: nextPhase };
     }
 
     case 'WHIST_DECISION': {
@@ -148,11 +160,14 @@ export function dealReducer(state: DealState, action: DealAction): DealState {
       if (phase.contract) {
         tricksByPlayer[phase.contract.declarer] += state.discard.length;
       }
-      const pointsDelta = computeDealResult({
-        contract: phase.contract,
-        tricksByPlayer,
-        whistDecisions: phase.whistDecisions,
-      });
+      const pointsDelta = computeDealResult(
+        {
+          contract: phase.contract,
+          tricksByPlayer,
+          whistDecisions: phase.whistDecisions,
+        },
+        config,
+      );
       const nextPhase: DealPhase = {
         tag: 'scored',
         result: { contract: phase.contract, tricksByPlayer, whistDecisions: phase.whistDecisions, pointsDelta },

@@ -1,12 +1,18 @@
 import type { DealResult, GameState } from '../model/gameState';
 import { nextPlayer, PLAYER_IDS, type PlayerId } from '../model/player';
-import { SOCHINKA_SCORING_TABLE } from '../rules/scoring';
+import type { RulesConfig } from '../rules/rulesConfig';
 import { createDeal, dealReducer, type DealAction } from './dealReducer';
 
-export function createInitialGameState(firstDealer: PlayerId, rng: () => number = Math.random): GameState {
+export function createInitialGameState(
+  firstDealer: PlayerId,
+  config: RulesConfig,
+  rng: () => number = Math.random,
+): GameState {
   return {
     totals: { 0: { game: 0, gora: 0 }, 1: { game: 0, gora: 0 }, 2: { game: 0, gora: 0 } },
-    pulyaLength: SOCHINKA_SCORING_TABLE.PULYA_LENGTH,
+    pulyaLength: config.pulyaLength,
+    rulesConfig: config,
+    sessionStartedAt: Date.now(),
     deal: createDeal(1, firstDealer, rng),
     history: [],
   };
@@ -15,7 +21,7 @@ export function createInitialGameState(firstDealer: PlayerId, rng: () => number 
 export type SessionAction =
   | { type: 'DEAL_ACTION'; action: DealAction }
   | { type: 'START_NEXT_DEAL'; rng?: () => number }
-  | { type: 'START_NEW_PULYA'; firstDealer: PlayerId; rng?: () => number };
+  | { type: 'START_NEW_PULYA'; firstDealer: PlayerId; config: RulesConfig; rng?: () => number };
 
 function applyDealResult(state: GameState, result: DealResult): GameState {
   const totals = { ...state.totals };
@@ -30,7 +36,7 @@ function applyDealResult(state: GameState, result: DealResult): GameState {
 
 export function sessionReducer(state: GameState, action: SessionAction): GameState {
   if (action.type === 'DEAL_ACTION') {
-    const nextDeal = dealReducer(state.deal, action.action);
+    const nextDeal = dealReducer(state.deal, action.action, state.rulesConfig);
     if (nextDeal.phase.tag === 'scored') {
       return applyDealResult({ ...state, deal: nextDeal }, nextDeal.phase.result);
     }
@@ -38,7 +44,7 @@ export function sessionReducer(state: GameState, action: SessionAction): GameSta
   }
 
   if (action.type === 'START_NEW_PULYA') {
-    return createInitialGameState(action.firstDealer, action.rng ?? Math.random);
+    return createInitialGameState(action.firstDealer, action.config, action.rng ?? Math.random);
   }
 
   // START_NEXT_DEAL
@@ -48,11 +54,29 @@ export function sessionReducer(state: GameState, action: SessionAction): GameSta
   return { ...state, deal: createDeal(nextDealNumber, nextDealer, rng) };
 }
 
-export function isPulyaComplete(state: GameState): boolean {
-  return state.deal.dealNumber > state.pulyaLength && state.deal.phase.tag === 'scored';
+/** By-points pulyas end on deal count; by-time pulyas end once the current deal finishes after the time budget elapses. */
+export function isPulyaComplete(
+  state: GameState,
+  winCondition: 'points' | 'time',
+  timeTargetMinutes = 0,
+  now: number = Date.now(),
+): boolean {
+  if (state.deal.phase.tag !== 'scored') return false;
+  if (winCondition === 'time') {
+    return now - state.sessionStartedAt >= timeTargetMinutes * 60_000;
+  }
+  return state.deal.dealNumber > state.pulyaLength;
 }
 
-export function isLastDealOfPulya(state: GameState): boolean {
+export function isLastDealOfPulya(
+  state: GameState,
+  winCondition: 'points' | 'time',
+  timeTargetMinutes = 0,
+  now: number = Date.now(),
+): boolean {
+  if (winCondition === 'time') {
+    return now - state.sessionStartedAt >= timeTargetMinutes * 60_000;
+  }
   return state.deal.dealNumber >= state.pulyaLength;
 }
 
