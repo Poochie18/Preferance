@@ -33,7 +33,7 @@ export interface TranslationKeys {
     pauseEnabled: { label: string };
     suitLayout: { label: string; groupedByColor: string; alternating: string };
     cardScale: { label: string };
-    textScale: { label: string };
+    textScale: { label: string; example: string };
   };
   bidding: {
     title: string;

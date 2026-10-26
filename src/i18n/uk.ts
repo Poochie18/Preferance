@@ -31,7 +31,7 @@ export const uk: TranslationKeys = {
     pauseEnabled: { label: 'Пауза' },
     suitLayout: { label: 'Розміщення мастей', groupedByColor: 'Чорні — червоні', alternating: 'Чорна-червона-чорна-червона' },
     cardScale: { label: 'Розмір карт' },
-    textScale: { label: 'Розмір тексту' },
+    textScale: { label: 'Розмір тексту', example: 'Приклад тексту' },
   },
   bidding: { title: 'Торг — ваш хід', pass: 'Пас', noTrump: 'б/к' },
   talon: {

@@ -1,33 +1,55 @@
 import { useTranslation } from '../../../i18n';
-import type { Locale } from '../../../i18n/types';
+import { useSettings } from '../../../settings/context';
+import { useGame } from '../../context/GameContext';
+import type { BotDifficulty } from '../../../ai/types';
 
-const LOCALES: Locale[] = ['ru', 'uk', 'en'];
-const LOCALE_LABEL: Record<Locale, string> = { ru: 'Русский', uk: 'Українська', en: 'English' };
+const DIFFICULTIES: BotDifficulty[] = ['easy', 'medium', 'hard'];
 
 interface Props {
-  onNewGame: () => void;
   onSettings: () => void;
 }
 
-export function MainMenu({ onNewGame, onSettings }: Props) {
-  const { t, locale, setLocale } = useTranslation();
+export function MainMenu({ onSettings }: Props) {
+  const { t } = useTranslation();
+  const { settings, updateSettings } = useSettings();
+  const { startGame } = useGame();
 
   return (
     <div className="main-menu panel">
       <h1>{t.menu.title}</h1>
       <p className="main-menu-subtitle">{t.menu.subtitle}</p>
 
-      <div className="language-picker">
-        <span>{t.menu.language}:</span>
-        {LOCALES.map((l) => (
-          <button key={l} className={l === locale ? 'lang-active' : ''} onClick={() => setLocale(l)}>
-            {LOCALE_LABEL[l]}
-          </button>
-        ))}
+      <div className="difficulty-pickers">
+        <label>
+          {t.newGame.bot1}
+          <select
+            value={settings.bot1Difficulty}
+            onChange={(e) => updateSettings({ bot1Difficulty: e.target.value as BotDifficulty })}
+          >
+            {DIFFICULTIES.map((d) => (
+              <option key={d} value={d}>
+                {t.newGame.difficulty[d]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t.newGame.bot2}
+          <select
+            value={settings.bot2Difficulty}
+            onChange={(e) => updateSettings({ bot2Difficulty: e.target.value as BotDifficulty })}
+          >
+            {DIFFICULTIES.map((d) => (
+              <option key={d} value={d}>
+                {t.newGame.difficulty[d]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="main-menu-actions">
-        <button className="start-button" onClick={onNewGame}>
+        <button className="start-button" onClick={startGame}>
           {t.menu.newGame}
         </button>
         <button onClick={onSettings}>{t.menu.settings}</button>

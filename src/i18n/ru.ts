@@ -31,7 +31,7 @@ export const ru: TranslationKeys = {
     pauseEnabled: { label: 'Пауза' },
     suitLayout: { label: 'Расположение мастей', groupedByColor: 'Чёрные — красные', alternating: 'Чёрная-красная-чёрная-красная' },
     cardScale: { label: 'Размер карт' },
-    textScale: { label: 'Размер текста' },
+    textScale: { label: 'Размер текста', example: 'Пример текста' },
   },
   bidding: { title: 'Торг — ваш ход', pass: 'Пас', noTrump: 'б/к' },
   talon: {

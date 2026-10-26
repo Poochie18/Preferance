@@ -31,7 +31,7 @@ export const en: TranslationKeys = {
     pauseEnabled: { label: 'Pause' },
     suitLayout: { label: 'Suit layout', groupedByColor: 'Black — red', alternating: 'Black-red-black-red' },
     cardScale: { label: 'Card size' },
-    textScale: { label: 'Text size' },
+    textScale: { label: 'Text size', example: 'Example text' },
   },
   bidding: { title: 'Bidding — your turn', pass: 'Pass', noTrump: 'NT' },
   talon: {
