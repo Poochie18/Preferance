@@ -60,9 +60,6 @@ export interface TranslationKeys {
     game: string;
     gora: string;
   };
-  gameLog: {
-    title: string;
-  };
   table: {
     yourTurn: string;
     nextDeal: string;
@@ -70,21 +67,8 @@ export interface TranslationKeys {
     newGame: string;
     pause: string;
     resume: string;
-  };
-  log: {
-    newGameStarted: string;
-    newPulyaStarted: string;
-    dealHeader: (n: number) => string;
-    bidPass: (name: string) => string;
-    bidDeclare: (name: string, bid: string) => string;
-    talonExchange: (name: string, discard: string) => string;
-    talonExchangeVyslu: (name: string, discard: string) => string;
-    whistWhist: (name: string) => string;
-    whistHalf: (name: string) => string;
-    whistPass: (name: string) => string;
-    playCard: (name: string, card: string) => string;
-    raspasovkaResult: string;
-    contractResult: (name: string, label: string, tricks: number, made: boolean) => string;
+    botThinking: string;
+    cardsCount: (n: number) => string;
   };
   contractLabel: {
     misere: string;
