@@ -11,6 +11,7 @@ import { hardBot } from '../../ai/hardBot';
 import type { BotDifficulty, BotStrategy } from '../../ai/types';
 import { useSettings } from '../../settings/context';
 import { rulesConfigFromSettings } from '../../settings/rulesConfigFromSettings';
+import { dealStartEntry, historyForAction, type HistoryEntry } from '../history';
 
 export const HUMAN: PlayerId = 0;
 
@@ -23,6 +24,8 @@ const BOT_STRATEGIES: Record<BotDifficulty, BotStrategy> = {
 interface InternalState {
   game: GameState | null;
   paused: boolean;
+  /** Move history for the current game, as seen by the human player. */
+  log: HistoryEntry[];
 }
 
 type InternalAction =
@@ -35,15 +38,16 @@ type InternalAction =
 function reducer(state: InternalState, action: InternalAction): InternalState {
   switch (action.type) {
     case 'START':
-      return { game: action.game, paused: false };
+      return { game: action.game, paused: false, log: [dealStartEntry(action.game)] };
     case 'RESET':
-      return { game: null, paused: false };
+      return { game: null, paused: false, log: [] };
     case 'SET_PAUSED':
       return { ...state, paused: action.paused };
     case 'DEAL_ACTION': {
       if (!state.game) return state;
       const nextGame = sessionReducer(state.game, { type: 'DEAL_ACTION', action: action.action });
-      return { ...state, game: nextGame };
+      const entries = historyForAction(state.game, action.action, nextGame, HUMAN);
+      return { ...state, game: nextGame, log: [...state.log, ...entries] };
     }
     case 'NEXT_DEAL': {
       if (!state.game) return state;
@@ -51,7 +55,7 @@ function reducer(state: InternalState, action: InternalAction): InternalState {
       const nextGame = atPulyaEnd
         ? sessionReducer(state.game, { type: 'START_NEW_PULYA', firstDealer: 0, config: action.config })
         : sessionReducer(state.game, { type: 'START_NEXT_DEAL' });
-      return { ...state, game: nextGame };
+      return { ...state, game: nextGame, log: [...state.log, dealStartEntry(nextGame)] };
     }
   }
 }
@@ -59,6 +63,7 @@ function reducer(state: InternalState, action: InternalAction): InternalState {
 interface GameContextValue {
   game: GameState | null;
   paused: boolean;
+  log: HistoryEntry[];
   startGame: () => void;
   resetGame: () => void;
   dispatchHuman: (action: DealAction) => void;
@@ -71,7 +76,7 @@ const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings();
-  const [state, dispatch] = useReducer(reducer, { game: null, paused: false });
+  const [state, dispatch] = useReducer(reducer, { game: null, paused: false, log: [] });
   const steppingRef = useRef(false);
 
   const botStrategyFor = useCallback(
@@ -90,11 +95,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (actingPlayer === null || actingPlayer === HUMAN) return;
     if (steppingRef.current) return;
     steppingRef.current = true;
+    // Hold a finished trick on the table a little longer before the winner leads again.
+    const phase = state.game.deal.phase;
+    const delay = phase.tag === 'trickPlay' && phase.currentTrick.length === 0 && phase.tricks.length > 0 ? 1300 : 550;
     const timer = setTimeout(() => {
       steppingRef.current = false;
       const action = decideBotAction(state.game!, actingPlayer, botStrategyFor(actingPlayer));
       dispatch({ type: 'DEAL_ACTION', action });
-    }, 550);
+    }, delay);
     return () => {
       clearTimeout(timer);
       steppingRef.current = false;
@@ -117,6 +125,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const value: GameContextValue = {
     game: state.game,
     paused: state.paused,
+    log: state.log,
     startGame,
     resetGame,
     dispatchHuman,

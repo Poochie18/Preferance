@@ -44,7 +44,8 @@ describe('headless bot-vs-bot-vs-bot smoke test', () => {
     }
     expect(state.history).toHaveLength(10);
     for (const p of [0, 1, 2] as PlayerId[]) {
-      expect(state.totals[p].game).toBeGreaterThanOrEqual(0);
+      expect(state.totals[p].pulya).toBeGreaterThanOrEqual(0);
+      expect(state.totals[p].whists[p]).toBe(0);
       expect(state.totals[p].gora).toBeGreaterThanOrEqual(0);
     }
   });

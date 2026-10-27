@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { Card } from '../../../engine/model/card';
 import { cardLabel, isRedSuit } from '../../cardLabel';
 import { isEligibleForVyslu } from '../../../engine/rules/scoring';
@@ -6,7 +6,8 @@ import type { Bid } from '../../../engine/model/bid';
 import { formatBidLocalized } from '../../formatBid';
 import { useTranslation } from '../../../i18n';
 import { useSettings } from '../../../settings/context';
-import { sortHand } from '../../handSort';
+import { sortHand, startsSuitGroup, suitGroupBreaks } from '../../handSort';
+import { CardIndex } from '../CardIndex/CardIndex';
 import type { RulesConfig } from '../../../engine/rules/rulesConfig';
 
 interface Props {
@@ -39,30 +40,39 @@ export function TalonExchange({ combinedHand, finalBid, declarerGora, rulesConfi
 
   return (
     <div className="panel talon-exchange">
-      <h3>{t.talon.title(formatBidLocalized(finalBid, t), selected.length)}</h3>
-      <div className="hand">
-        {sorted.map((c) => {
+      <div className="controls-header">
+        <h3>{t.talon.title(formatBidLocalized(finalBid, t), selected.length)}</h3>
+        <div className="controls-header-actions">
+          {eligible && (
+            <label className="vyslu-toggle">
+              <input type="checkbox" checked={onVyslu} onChange={(e) => setOnVyslu(e.target.checked)} />
+              {t.talon.playOnVyslu}
+            </label>
+          )}
+          <button
+            className="primary-action"
+            disabled={selected.length !== 2}
+            onClick={() => onConfirm([selected[0], selected[1]], onVyslu)}
+          >
+            {t.talon.confirm}
+          </button>
+        </div>
+      </div>
+      <div className="hand" style={{ '--count': sorted.length, '--breaks': suitGroupBreaks(sorted) } as CSSProperties}>
+        {sorted.map((c, i) => {
           const isSelected = selected.some((s) => sameCard(s, c));
           return (
             <button
               key={`${c.suit}${c.rank}`}
-              className={`card ${isRedSuit(c.suit) ? 'red' : 'black'} ${isSelected ? 'selected' : ''}`}
+              aria-label={cardLabel(c)}
+              className={`card ${isRedSuit(c.suit) ? 'red' : 'black'} ${isSelected ? 'selected' : ''} ${startsSuitGroup(sorted, i) ? 'suit-start' : ''}`}
               onClick={() => toggle(c)}
             >
-              {cardLabel(c)}
+              <CardIndex card={c} />
             </button>
           );
         })}
       </div>
-      {eligible && (
-        <label className="vyslu-toggle">
-          <input type="checkbox" checked={onVyslu} onChange={(e) => setOnVyslu(e.target.checked)} />
-          {t.talon.playOnVyslu}
-        </label>
-      )}
-      <button disabled={selected.length !== 2} onClick={() => onConfirm([selected[0], selected[1]], onVyslu)}>
-        {t.talon.confirm}
-      </button>
     </div>
   );
 }

@@ -135,7 +135,7 @@ export function dealReducer(state: DealState, action: DealAction, config: RulesC
       if (phase.tag !== 'trickPlay') throw new Error('Not in trick play phase');
       if (action.player !== phase.turn) throw new Error('Not this player\'s turn to play');
       const hand = state.hands[action.player];
-      const legal = legalCardsToPlay(hand, phase.currentTrick);
+      const legal = legalCardsToPlay(hand, phase.currentTrick, phase.contract);
       if (!legal.some((c) => c.suit === action.card.suit && c.rank === action.card.rank)) {
         throw new Error('Illegal card for current trick');
       }
@@ -157,9 +157,6 @@ export function dealReducer(state: DealState, action: DealAction, config: RulesC
       }
 
       const tricksByPlayer = tallyTricks(tricks);
-      if (phase.contract) {
-        tricksByPlayer[phase.contract.declarer] += state.discard.length;
-      }
       const pointsDelta = computeDealResult(
         {
           contract: phase.contract,

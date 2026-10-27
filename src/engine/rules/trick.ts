@@ -2,16 +2,22 @@ import type { Card, Suit } from '../model/card';
 import type { Contract, TrickCardPlay } from '../model/gameState';
 import type { PlayerId } from '../model/player';
 
-/** Returns the set of cards from `hand` that are legal to play given what's on the table so far. */
-export function legalCardsToPlay(hand: Card[], currentTrick: TrickCardPlay[]): Card[] {
+/**
+ * Returns the set of cards from `hand` that are legal to play given what's on the table so far:
+ * follow the led suit if possible, otherwise trump if holding any trump, otherwise anything.
+ */
+export function legalCardsToPlay(hand: Card[], currentTrick: TrickCardPlay[], contract: Contract | null): Card[] {
   if (currentTrick.length === 0) return hand;
   const ledSuit = currentTrick[0].card.suit;
   const sameSuit = hand.filter((c) => c.suit === ledSuit);
   if (sameSuit.length > 0) return sameSuit;
+  const trump = trumpSuitOf(contract);
+  const trumps = trump ? hand.filter((c) => c.suit === trump) : [];
+  if (trumps.length > 0) return trumps;
   return hand;
 }
 
-function trumpSuitOf(contract: Contract | null): Suit | null {
+export function trumpSuitOf(contract: Contract | null): Suit | null {
   if (!contract) return null; // rozpasovka: no trump
   if (contract.kind !== 'suit') return null; // misere/misere-ouvert/gora: no trump
   if (contract.trump === 'nt' || contract.trump === undefined) return null;

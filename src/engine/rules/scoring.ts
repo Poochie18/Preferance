@@ -28,12 +28,13 @@ export interface ScoringInput {
   whistDecisions: Partial<Record<PlayerId, WhistDecision>>;
 }
 
-function emptyDeltas(): Record<PlayerId, PlayerDelta> {
-  return { 0: { game: 0, gora: 0 }, 1: { game: 0, gora: 0 }, 2: { game: 0, gora: 0 } };
+export function emptyScores(): Record<PlayerId, PlayerDelta> {
+  const empty = (): PlayerDelta => ({ pulya: 0, gora: 0, whists: { 0: 0, 1: 0, 2: 0 } });
+  return { 0: empty(), 1: empty(), 2: empty() };
 }
 
 function scoreRaspasovka(tricksByPlayer: Record<PlayerId, number>, config: RulesConfig): Record<PlayerId, PlayerDelta> {
-  const delta = emptyDeltas();
+  const delta = emptyScores();
   const players: PlayerId[] = [0, 1, 2];
   const minTricks = Math.min(...players.map((p) => tricksByPlayer[p]));
   const [t1, t2] = config.rozpasovkaExit;
@@ -53,14 +54,14 @@ function scoreSuitContract(
   whistDecisions: Partial<Record<PlayerId, WhistDecision>>,
   config: RulesConfig,
 ): Record<PlayerId, PlayerDelta> {
-  const delta = emptyDeltas();
+  const delta = emptyScores();
   const { declarer, level } = contract;
   const suitValue = config.scoring.SUIT_VALUE[contract.trump ?? 'nt'];
   const got = tricksByPlayer[declarer];
   const declarerSucceeded = got >= level;
 
   if (declarerSucceeded) {
-    delta[declarer].game += level * suitValue;
+    delta[declarer].pulya += level * suitValue;
   } else {
     delta[declarer].gora += (level - got) * suitValue;
   }
@@ -88,7 +89,7 @@ function scoreSuitContract(
     const share = Math.round((combined * config.scoring.WHIST_POINT_PER_TRICK) / activeOpponents.length);
     for (const p of activeOpponents) {
       if (declarerSucceeded) delta[p].gora += share;
-      else delta[p].game += share;
+      else delta[p].whists[declarer] += share;
     }
     return delta;
   }
@@ -99,7 +100,7 @@ function scoreSuitContract(
     const multiplier = decision === 'half-whist' ? 0.5 : 1;
     const whistTricks = tricksByPlayer[p];
     if (!declarerSucceeded) {
-      delta[p].game += Math.round(whistTricks * config.scoring.WHIST_POINT_PER_TRICK * multiplier);
+      delta[p].whists[declarer] += Math.round(whistTricks * config.scoring.WHIST_POINT_PER_TRICK * multiplier);
     } else {
       const shortfall = Math.max(0, parPerWhist - whistTricks);
       delta[p].gora += Math.round(shortfall * config.scoring.WHIST_POINT_PER_TRICK * multiplier);
@@ -110,11 +111,11 @@ function scoreSuitContract(
 }
 
 function scoreMisere(contract: Contract, tricksByPlayer: Record<PlayerId, number>, config: RulesConfig): Record<PlayerId, PlayerDelta> {
-  const delta = emptyDeltas();
+  const delta = emptyScores();
   const got = tricksByPlayer[contract.declarer];
   const isOuvert = contract.kind === 'misere-ouvert';
   if (got === 0) {
-    delta[contract.declarer].game += isOuvert ? config.scoring.MISERE_OUVERT_VALUE : config.scoring.MISERE_VALUE;
+    delta[contract.declarer].pulya += isOuvert ? config.scoring.MISERE_OUVERT_VALUE : config.scoring.MISERE_VALUE;
   } else {
     const perTrick = isOuvert ? config.scoring.MISERE_OUVERT_PENALTY_PER_TRICK : config.scoring.MISERE_PENALTY_PER_TRICK;
     delta[contract.declarer].gora += got * perTrick;
@@ -123,10 +124,10 @@ function scoreMisere(contract: Contract, tricksByPlayer: Record<PlayerId, number
 }
 
 function scoreGora(contract: Contract, tricksByPlayer: Record<PlayerId, number>, config: RulesConfig): Record<PlayerId, PlayerDelta> {
-  const delta = emptyDeltas();
+  const delta = emptyScores();
   const got = tricksByPlayer[contract.declarer];
   if (got === 10) {
-    delta[contract.declarer].game += config.scoring.GORA_BONUS;
+    delta[contract.declarer].pulya += config.scoring.GORA_BONUS;
   } else {
     delta[contract.declarer].gora += config.scoring.GORA_PENALTY;
   }

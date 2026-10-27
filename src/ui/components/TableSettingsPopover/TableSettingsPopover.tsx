@@ -14,8 +14,8 @@ export function TableSettingsPopover({ paused, pauseEnabled, onTogglePause, onCl
   const s = t.settings;
 
   return (
-    <div className="panel table-settings-popover">
-      <div className="table-settings-header">
+    <div className="panel table-popover table-settings-popover">
+      <div className="popover-header">
         <h3>{t.menu.settings}</h3>
         <button className="popover-close" onClick={onClose} aria-label={s.back}>
           ×
@@ -33,7 +33,7 @@ export function TableSettingsPopover({ paused, pauseEnabled, onTogglePause, onCl
         <input
           type="range"
           min={0.75}
-          max={2.5}
+          max={2}
           step={0.05}
           value={settings.cardScale}
           onChange={(e) => updateSettings({ cardScale: Number(e.target.value) })}
@@ -57,7 +57,7 @@ export function TableSettingsPopover({ paused, pauseEnabled, onTogglePause, onCl
         <input
           type="range"
           min={0.85}
-          max={1.6}
+          max={1}
           step={0.05}
           value={settings.textScale}
           onChange={(e) => updateSettings({ textScale: Number(e.target.value) })}

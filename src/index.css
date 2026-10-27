@@ -11,6 +11,8 @@
   --card-black: #111;
   --accent: #e0b84b;
   --accent-dark: #b6872a;
+  --outcome-made: #1f7a3d;
+  --outcome-failed: #b5281a;
   --input-bg: #fffdf7;
   --input-text: #1a1a1a;
   --card-scale: 1;
@@ -27,6 +29,8 @@
     --panel-border: rgba(255, 255, 255, 0.12);
     --text: #eee;
     --card-bg: #f0f0f0;
+    --outcome-made: #6fd08f;
+    --outcome-failed: #ff8a7a;
   }
 }
 
@@ -444,21 +448,74 @@ input[type='number']:hover {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 6px 2px;
+  /* Lets the cards size their overlap from the hand's own width (cqw). */
+  container-type: inline-size;
 }
 
 /* Fan the cards out in a single overlapping row instead of wrapping, so a
    full hand never grows taller than one row (and never gets clipped by the
-   fixed-height, no-page-scroll table layout). */
+   fixed-height, no-page-scroll table layout). The overlap tightens when the
+   cards would not fit the width otherwise (large card scale, 12-card talon
+   pickup). --count is set inline from the number of cards. */
 .hand > * {
   flex-shrink: 0;
-  margin-left: calc(-16px * var(--card-scale));
+  width: calc(54px * var(--card-scale));
 }
 
-.hand > *:first-child {
-  margin-left: 0;
+/* The first card of each suit is shifted right by --suit-gap: more than the normal
+   16px overlap, so groups get a real gap. The gap only uses width beyond what keeps
+   a 40px readable strip per card, so it shrinks to nothing in a crowded hand (e.g. the
+   12-card talon at large scales) instead of covering card indexes. The shift is taken
+   out of the width first, so the overlap adjusts and the whole hand still fits.
+   --breaks is the number of suit changes, set inline. */
+.hand {
+  --suit-gap: clamp(
+    0px,
+    (100cqw - (var(--count) - 1) * 40px * var(--card-scale) - 54px * var(--card-scale)) / max(var(--breaks, 0), 1),
+    28px * var(--card-scale)
+  );
 }
 
-.hand > *.selected,
+.hand > * + * {
+  margin-left: min(
+    calc(-16px * var(--card-scale)),
+    calc(
+      (100cqw - var(--breaks, 0) * var(--suit-gap) - var(--count) * 54px * var(--card-scale)) /
+        max(var(--count) - 1, 1)
+    )
+  );
+}
+
+.hand > .suit-start {
+  margin-left: calc(
+    var(--suit-gap) +
+      min(
+        calc(-16px * var(--card-scale)),
+        calc(
+          (100cqw - var(--breaks, 0) * var(--suit-gap) - var(--count) * 54px * var(--card-scale)) /
+            max(var(--count) - 1, 1)
+        )
+      )
+  );
+}
+
+/* Index in the top-left corner, like a real card, so it stays readable in
+   the narrow strip a fanned card leaves uncovered. */
+.hand > .card {
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: calc(4px * var(--card-scale)) calc(5px * var(--card-scale));
+}
+
+.card-index {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+
+/* Only hover raises a card: a raised *selected* card would hide its right
+   neighbour's index in a tight fan, e.g. while picking talon discards. */
 .hand > *:hover:not(:disabled) {
   z-index: 1;
 }
@@ -467,7 +524,9 @@ input[type='number']:hover {
 .table {
   flex: 1;
   display: grid;
-  grid-template-columns: clamp(110px, 14vw, 180px) 1fr clamp(110px, 14vw, 180px);
+  /* Bot columns grow with their content (cards + stats beside them), so larger
+     card or text scales take room from the centre instead of overflowing. */
+  grid-template-columns: minmax(clamp(110px, 14vw, 180px), auto) 1fr minmax(clamp(110px, 14vw, 180px), auto);
   grid-template-rows: 1fr auto;
   gap: 12px;
   padding: 16px;
@@ -482,6 +541,8 @@ input[type='number']:hover {
   justify-content: center;
   min-height: 0;
   min-width: 0;
+  /* Keeps the seat clear of the fixed Settings / New game corner buttons. */
+  padding-top: calc(40px * var(--text-scale));
 }
 
 .bot-seat-left {
@@ -499,8 +560,7 @@ input[type='number']:hover {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 12px;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
   min-width: 0;
 }
@@ -515,6 +575,10 @@ input[type='number']:hover {
   border-radius: 14px;
   min-height: 0;
   transition: background 0.2s ease, box-shadow 0.2s ease;
+  max-width: 100%;
+  /* Never taller than the seat: on short screens the card fan shrinks instead
+     of spilling onto the corner buttons and the player's area. */
+  max-height: 100%;
 }
 
 .opponent.is-acting,
@@ -523,28 +587,80 @@ input[type='number']:hover {
   box-shadow: 0 0 0 1px rgba(224, 184, 75, 0.4);
 }
 
-.seat-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--panel-bg);
-  color: var(--text);
-  font-weight: 700;
-  font-size: calc(13px * var(--text-scale));
-  border: 1px solid var(--panel-border);
-}
-
 .opponent-name {
-  font-size: calc(14px * var(--text-scale));
+  font-size: calc(18px * var(--text-scale));
   white-space: nowrap;
 }
 
 .bot-card-count {
-  font-size: calc(12px * var(--text-scale));
-  opacity: 0.7;
+  font-size: calc(15px * var(--text-scale));
+  opacity: 0.85;
+}
+
+.seat-stats {
+  color: var(--accent);
+}
+
+/* Cards and stats side by side; the stats face the table centre. The row is
+   --hand-size tall but may shrink with the seat (see .opponent max-height). */
+.bot-hand-row {
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--text-scale));
+  height: var(--hand-size);
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.bot-seat-right .bot-hand-row {
+  flex-direction: row-reverse;
+}
+
+/* Name, turn, card count, role and tricks beside the cards. As wide as its content
+   (narrow while bidding, when only name and card count show), capped by a width that
+   tracks the text scale: a long contract ("Розыгрыш открытый мизер") wraps instead
+   of widening the column. */
+.bot-info {
+  flex: none;
+  width: max-content;
+  max-width: calc(110px * var(--text-scale));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  line-height: 1.25;
+  /* Wrap at spaces only ("Розыгрыш / 6б/к"); break-word, unlike anywhere, doesn't
+     shrink the min-content width to a single letter. */
+  overflow-wrap: break-word;
+  text-align: left;
+}
+
+.bot-seat-right .bot-info {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.bot-info .turn-indicator {
+  /* One word per line ("Ход / игрока") so it never sets the block's width. */
+  width: min-content;
+}
+
+.bot-info .seat-stats > :last-child {
+  white-space: nowrap;
+}
+
+.bot-seat .seat-stats {
+  margin-top: calc(4px * var(--text-scale));
+  font-size: calc(16px * var(--text-scale));
+}
+
+.seat-role {
+  font-weight: 600;
+}
+
+/* "6б/к" would otherwise break after the slash. */
+.seat-role .nowrap {
+  white-space: nowrap;
 }
 
 /* Reserve an upright footprint for the rotated hand so it never spills into
@@ -552,16 +668,30 @@ input[type='number']:hover {
    card row is rotated inside it, sized to fit a full 10-12 card hand. */
 .rotated-hand {
   position: relative;
-  width: 84px;
-  height: var(--hand-size);
+  /* Rotated card-back height (54px * scale) plus the row's padding/borders,
+     so larger card scales widen the footprint instead of spilling out. */
+  width: calc(54px * var(--card-scale) + 8px);
+  /* Stretched to the row's (possibly shrunk) height; the fan below measures it as 100cqh. */
+  align-self: stretch;
   flex: none;
+  container-type: size;
+}
+
+/* Tighten the fan as cards grow so the whole row always fits the hand's height
+   (otherwise a scaled-up hand overflows onto the name and card count).
+   --count is set inline from the opponent's hand size. */
+.rotated-hand .opponent-cards > * + * {
+  margin-left: min(
+    calc(-18px * var(--card-scale)),
+    calc((100cqh - 4px - var(--count) * 38px * var(--card-scale)) / max(var(--count) - 1, 1))
+  );
 }
 
 .rotated-hand .opponent-cards {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: var(--hand-size);
+  width: 100cqh;
 }
 
 .bot-seat-left .rotated-hand .opponent-cards {
@@ -594,6 +724,14 @@ input[type='number']:hover {
   font-weight: bold;
 }
 
+.opponent .turn-indicator {
+  font-size: calc(16px * var(--text-scale));
+}
+
+.turn-indicator.is-hidden {
+  visibility: hidden;
+}
+
 .playing-surface {
   width: 100%;
   max-width: clamp(380px, 42vw, 680px);
@@ -619,10 +757,26 @@ input[type='number']:hover {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
+}
+
+/* The finished trick stays on the table until the next lead, its winning card marked. */
+.trick-area.is-last .card {
+  opacity: 0.6;
+}
+
+.trick-card.is-winner .card {
+  opacity: 1;
+  box-shadow: 0 0 0 3px var(--accent), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.trick-card.is-winner .trick-player {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .trick-empty {
+  margin: 0;
   opacity: 0.6;
   font-style: italic;
 }
@@ -632,9 +786,46 @@ input[type='number']:hover {
   align-items: flex-start;
   justify-content: center;
   width: 100%;
-  /* Reserved so the score table and playing surface above never shift when
-     this area's content changes (bidding <-> talon <-> whist <-> waiting). */
-  min-height: 290px;
+  /* A fixed basis (not content-sized) keeps the score table above from
+     shifting when this area's content changes (bidding <-> talon <-> whist
+     <-> waiting). When large text/card scales leave too little height, this
+     area and the score sheet shrink together and scroll internally instead
+     of overflowing onto the player's hand. Shrinks first: the bid grid has
+     slack to give, the already compact score sheet does not: the large shrink
+     factor makes the controls absorb almost all of a shortfall. */
+  flex: 1 1000 290px;
+  min-height: 0;
+}
+
+/* Nothing to show during trick play: don't let the reserved basis squeeze
+   the score sheet while the playing surface is up. */
+.center-controls:empty {
+  display: none;
+}
+
+.center-controls > .panel {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* Only the bid grid scrolls, so the title and Pass stay visible. */
+.center-controls > .bidding-controls {
+  overflow: hidden;
+}
+
+/* Last resort when height runs out: scrolls rather than overflowing. */
+.score-sheet {
+  /* Keeps factor 1 (a factor below 1 would leave part of a shortfall
+     unabsorbed when the sheet is the only shrinkable item, during play);
+     .center-controls' far larger factor makes the controls give way first. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.playing-surface {
+  flex: none;
+  padding: calc(10px * var(--text-scale));
 }
 
 .bot-thinking {
@@ -662,91 +853,246 @@ input[type='number']:hover {
   }
 }
 
-.pause-corner,
-.newgame-corner {
+.table-corner {
   position: fixed;
   top: 16px;
   z-index: 10;
 }
 
-.pause-corner {
+.table-corner-left {
   left: 16px;
+  display: flex;
+  gap: 8px;
 }
 
-.newgame-corner {
+.table-corner-right {
   right: 16px;
 }
 
-.table-settings-popover {
+/* Popovers open just below the corner buttons (whose height follows the text
+   scale: 1.4rem line + padding). Width follows the text scale too, but never
+   exceeds the viewport; tall content scrolls inside the popover. */
+.table-popover {
+  --popover-top: calc(38px + 1.4rem);
   position: fixed;
-  top: 60px;
+  top: var(--popover-top);
   left: 16px;
   z-index: 20;
-  width: 280px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100vh - var(--popover-top) - 16px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.table-settings-header {
+.table-settings-popover {
+  width: calc(280px * var(--text-scale));
+}
+
+.popover-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
-.table-settings-header h3 {
+.popover-header h3 {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .popover-close {
+  flex-shrink: 0;
   padding: 2px 10px;
-  font-size: 18px;
+  font-size: calc(18px * var(--text-scale));
   line-height: 1;
+}
+
+/* Fieldsets default to min-width: min-content and the shared .scale-field
+   has a fixed 260px width; both made the blocks spill past the popover. */
+.table-settings-popover .scale-field {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+
+.table-settings-popover legend {
+  font-weight: 600;
+  padding: 0 6px;
 }
 
 .popover-pause-button {
   width: 100%;
-  margin-bottom: 12px;
+}
+
+/* The list scrolls on its own so the header with the close button stays put. */
+.history-popover {
+  width: calc(380px * var(--text-scale));
+  overflow-y: hidden;
+}
+
+.history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+  font-size: calc(14px * var(--text-scale));
+}
+
+.history-list li {
+  padding: 3px 0;
+}
+
+.history-list li.history-dealStart {
+  margin-top: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--panel-border);
+  font-weight: 700;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.history-list li.history-dealStart:first-child {
+  margin-top: 0;
+}
+
+.history-list li.history-passout,
+.history-list li.history-contract,
+.history-list li.history-dealEnd {
+  margin-top: 4px;
+}
+
+.history-sub {
+  padding-left: 12px;
+  opacity: 0.85;
+}
+
+.history-card {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.history-card.red {
+  color: var(--card-red);
+}
+
+.history-empty {
+  margin: 0;
+  opacity: 0.7;
+  font-style: italic;
 }
 
 .bidding-controls {
-  width: clamp(420px, 48vw, 720px);
-  max-width: 100%;
+  /* Use the whole center column: more columns means fewer rows of bids. */
+  width: min(100%, 1000px);
+  /* Fills the controls area down to the player's hand (capped so the bid
+     buttons don't balloon on tall screens); the grid takes all the height
+     left under the header. */
+  height: min(100%, calc(380px * var(--text-scale)));
+  padding: calc(12px * var(--text-scale)) calc(16px * var(--text-scale));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Shared by bidding and talon exchange: the main action (Pass / Confirm)
+   sits in the header's top-right corner instead of a full-width row below,
+   leaving the rest of the panel to the bids or cards. */
+.controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.controls-header h3 {
+  margin: 0;
+  min-width: 0;
+}
+
+.controls-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.primary-action {
+  flex-shrink: 0;
+  padding: 6px 22px;
+  font-weight: 600;
 }
 
 .bid-grid {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* Levels 6–10 top to bottom, ♠ ♣ ♦ ♥ б/к left to right, then a wider column
+     for the word bids (мизер…). Cells are placed explicitly by the component. */
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.6fr);
+  grid-template-rows: repeat(5, minmax(calc(19px * var(--text-scale)), 1fr));
   gap: 6px;
-  margin-bottom: 10px;
-  max-height: min(165px, 24vh);
   overflow-y: auto;
 }
 
 .bid-grid button {
-  padding: 6px 4px;
-  font-size: calc(13px * var(--text-scale));
+  padding: 2px 4px;
+  font-size: calc(14px * var(--text-scale));
+  /* Two-line labels ("открытый мизер") must fit the minimum row height. */
+  line-height: 1.1;
 }
 
-.pass-button {
-  width: 100%;
+/* Misère / open misère / gora have word labels, not "7♠": a bit smaller. */
+.bid-grid button.bid-special {
+  font-size: calc(12px * var(--text-scale));
+}
+
+/* Bids already outbid stay in their cell, just faded. */
+.bid-grid button:disabled {
+  opacity: 0.3;
+}
+
+/* The bid to beat: as inactive as the other outbid cells, only a dashed outline
+   marks it as the last bid made. */
+.bid-grid button.is-current {
+  border: 2px dashed var(--accent);
+}
+
+.talon-exchange {
+  /* Explicit width: the hand inside measures itself (container-type), so the
+     panel can't size from its content. */
+  width: min(100%, 1000px);
+  padding: calc(12px * var(--text-scale)) calc(16px * var(--text-scale));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .vyslu-toggle {
-  display: block;
-  margin: 10px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .human-area {
   grid-column: 1 / -1;
   grid-row: 2;
   text-align: center;
-  padding: 10px;
+  padding: 6px 10px 10px;
   border-radius: 14px;
 }
 
 .score-sheet {
   width: 100%;
-  max-width: clamp(360px, 36vw, 560px);
+  max-width: clamp(380px, 42vw, 640px);
+  padding: calc(4px * var(--text-scale)) calc(14px * var(--text-scale));
 }
 
 .score-sheet table {
@@ -756,9 +1102,53 @@ input[type='number']:hover {
 
 .score-sheet th,
 .score-sheet td {
+  padding: 1px 8px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.score-sheet thead th {
   border-bottom: 1px solid var(--panel-border);
-  padding: 4px 8px;
+}
+
+.score-sheet tbody tr + tr > * {
+  border-top: 1px solid var(--panel-border);
+}
+
+.score-sheet th[scope='row'],
+.score-sheet-title {
   text-align: left;
+}
+
+.score-sheet-title {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.score-sheet th {
+  white-space: nowrap;
+}
+
+/* Whist columns are one block on the paper sheet: a rule on their left, small target names. */
+.score-sheet th[colspan],
+.score-sheet-targets > :first-child,
+.score-sheet tbody td.score-sheet-whists:nth-child(4) {
+  border-left: 1px solid var(--panel-border);
+}
+
+.score-sheet thead th[colspan] {
+  padding-bottom: 0;
+  border-bottom: none;
+  font-size: 0.9em;
+}
+
+.score-sheet-targets > th {
+  padding-top: 0;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.score-sheet td.score-sheet-whists {
+  font-size: 0.92em;
 }
 
 @media (max-width: 760px) {
@@ -774,15 +1164,16 @@ input[type='number']:hover {
     flex-shrink: 0;
   }
   .center-controls {
-    min-height: 0;
+    flex: none;
   }
-  .bid-grid {
-    max-height: none;
+  .score-sheet {
+    overflow-y: visible;
   }
   .rotated-hand {
     width: 100%;
     height: auto;
     min-height: 0;
+    container-type: normal;
   }
   .bot-seat-left .rotated-hand .opponent-cards,
   .bot-seat-right .rotated-hand .opponent-cards {
@@ -790,4 +1181,36 @@ input[type='number']:hover {
     transform: none;
     width: auto;
   }
+  .bot-hand-row,
+  .bot-seat-right .bot-hand-row {
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+  }
+  .bot-info,
+  .bot-seat-right .bot-info {
+    order: -1;
+    width: auto;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.deal-scored {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.deal-outcome {
+  font-weight: 600;
+}
+
+.deal-outcome.is-made {
+  color: var(--outcome-made);
+}
+
+.deal-outcome.is-failed {
+  color: var(--outcome-failed);
 }

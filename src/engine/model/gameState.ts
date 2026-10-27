@@ -30,9 +30,14 @@ export interface CompletedTrick {
   winner: PlayerId;
 }
 
+/** One player's lines on the classic score sheet. */
 export interface PlayerDelta {
-  game: number;
+  /** Points for contracts made; the pulya closes when everyone's reaches the target. */
+  pulya: number;
+  /** Penalty points. */
   gora: number;
+  /** Whists this player has written on each opponent (own entry stays 0). */
+  whists: Record<PlayerId, number>;
 }
 
 export interface DealResult {
@@ -68,15 +73,12 @@ export interface DealState {
   dealer: PlayerId;
   hands: Record<PlayerId, Card[]>;
   talon: Card[];
-  /** Declarer's 2 discarded cards; counted as declarer's own tricks at scoring time. */
+  /** Declarer's 2 discarded cards; out of play, they never count as anyone's tricks. */
   discard: Card[];
   phase: DealPhase;
 }
 
-export interface PlayerTotals {
-  game: number;
-  gora: number;
-}
+export type PlayerTotals = PlayerDelta;
 
 export interface GameState {
   totals: Record<PlayerId, PlayerTotals>;

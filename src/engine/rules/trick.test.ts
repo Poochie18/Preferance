@@ -8,19 +8,35 @@ const c = (suit: Card['suit'], rank: Card['rank']): Card => ({ suit, rank });
 describe('legalCardsToPlay', () => {
   it('allows any card when leading', () => {
     const hand = [c('♠', 7), c('♥', 14)];
-    expect(legalCardsToPlay(hand, [])).toEqual(hand);
+    expect(legalCardsToPlay(hand, [], null)).toEqual(hand);
   });
 
   it('forces following suit when possible', () => {
     const hand = [c('♠', 7), c('♥', 14)];
     const trick: TrickCardPlay[] = [{ player: 1, card: c('♠', 10) }];
-    expect(legalCardsToPlay(hand, trick)).toEqual([c('♠', 7)]);
+    expect(legalCardsToPlay(hand, trick, null)).toEqual([c('♠', 7)]);
   });
 
-  it('allows any card when void in the led suit', () => {
+  it('allows any card when void in the led suit and there are no trumps', () => {
     const hand = [c('♥', 14), c('♦', 8)];
     const trick: TrickCardPlay[] = [{ player: 1, card: c('♠', 10) }];
-    expect(legalCardsToPlay(hand, trick)).toEqual(hand);
+    expect(legalCardsToPlay(hand, trick, null)).toEqual(hand);
+    const noTrump: Contract = { declarer: 1, kind: 'suit', level: 6, trump: 'nt' };
+    expect(legalCardsToPlay(hand, trick, noTrump)).toEqual(hand);
+  });
+
+  it('forces a trump when void in the led suit and holding trumps', () => {
+    const hand = [c('♥', 14), c('♦', 8), c('♦', 12)];
+    const trick: TrickCardPlay[] = [{ player: 1, card: c('♠', 10) }];
+    const diamonds: Contract = { declarer: 1, kind: 'suit', level: 6, trump: '♦' };
+    expect(legalCardsToPlay(hand, trick, diamonds)).toEqual([c('♦', 8), c('♦', 12)]);
+  });
+
+  it('still follows suit before trumping', () => {
+    const hand = [c('♠', 7), c('♦', 8)];
+    const trick: TrickCardPlay[] = [{ player: 1, card: c('♠', 10) }];
+    const diamonds: Contract = { declarer: 1, kind: 'suit', level: 6, trump: '♦' };
+    expect(legalCardsToPlay(hand, trick, diamonds)).toEqual([c('♠', 7)]);
   });
 });
 

@@ -71,9 +71,9 @@ describe('dealReducer full phase walk', () => {
 
     expect(state.phase.tag).toBe('scored');
     if (state.phase.tag !== 'scored') throw new Error('unreachable');
-    // 10 tricks played + 2 discarded talon cards credited to the declarer = 12
+    // exactly the 10 played tricks; the 2 discarded talon cards are out of play
     const total = Object.values(state.phase.result.tricksByPlayer).reduce((a, b) => a + b, 0);
-    expect(total).toBe(12);
+    expect(total).toBe(10);
   });
 
   it('rejects actions that do not match the current phase', () => {

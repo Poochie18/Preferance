@@ -21,6 +21,12 @@ export function tricksNeededForContract(contract: Contract): number {
   throw new Error('Unknown contract kind');
 }
 
+/** Whether the declarer fulfilled the contract with this many tricks (exactly 0 for misère). */
+export function isContractMade(contract: Contract, declarerTricks: number): boolean {
+  const needed = tricksNeededForContract(contract);
+  return needed === 0 ? declarerTricks === 0 : declarerTricks >= needed;
+}
+
 export function contractHasTrump(contract: Contract): boolean {
   return contract.kind === 'suit' && contract.trump !== 'nt' && contract.trump !== undefined;
 }

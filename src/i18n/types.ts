@@ -53,22 +53,40 @@ export interface TranslationKeys {
   };
   trick: {
     empty: string;
+    takenBy: (name: string) => string;
   };
   scoreSheet: {
-    pulya: (current: number, total: number) => string;
-    player: string;
-    game: string;
+    dealCounter: (current: number, total: number) => string;
+    pulya: string;
     gora: string;
+    whists: string;
   };
   table: {
-    yourTurn: string;
+    playerTurn: string;
     nextDeal: string;
     newPulya: string;
-    newGame: string;
+    menu: string;
     pause: string;
     resume: string;
     botThinking: string;
     cardsCount: (n: number) => string;
+    declarerRole: string;
+    contractMade: string;
+    contractFailed: string;
+  };
+  history: {
+    title: string;
+    empty: string;
+    deal: (dealNumber: number, dealer: string) => string;
+    passout: string;
+    contract: (player: string, bid: string) => string;
+    onVyslu: string;
+    blind: string;
+    talon: string;
+    discard: string;
+    trick: (n: number) => string;
+    result: string;
+    tricksTaken: (n: number) => string;
   };
   contractLabel: {
     misere: string;

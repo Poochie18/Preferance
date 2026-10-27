@@ -208,7 +208,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           <input
             type="range"
             min={0.85}
-            max={1.6}
+            max={1}
             step={0.05}
             value={settings.textScale}
             onChange={(e) => updateSettings({ textScale: Number(e.target.value) })}
@@ -225,7 +225,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           <input
             type="range"
             min={0.75}
-            max={2.5}
+            max={2}
             step={0.05}
             value={settings.cardScale}
             onChange={(e) => updateSettings({ cardScale: Number(e.target.value) })}

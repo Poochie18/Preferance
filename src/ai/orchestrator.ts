@@ -36,7 +36,7 @@ export function decideBotAction(state: GameState, player: PlayerId, bot: BotStra
   }
   if (phase.tag === 'trickPlay') {
     const hand = state.deal.hands[player];
-    const legal = legalCardsToPlay(hand, phase.currentTrick);
+    const legal = legalCardsToPlay(hand, phase.currentTrick, phase.contract);
     return { type: 'PLAY_CARD', player, card: bot.decideCardToPlay(view, legal) };
   }
   throw new Error('No bot action available for the current phase');
